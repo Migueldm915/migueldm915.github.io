@@ -4,36 +4,97 @@
 <meta charset="UTF-8" />
 <title>Wordle</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
 <style>
 :root{
- --bg:#121213;--tile-bg:#3a3a3c;--tile-border:#565758;
- --green:#538d4e;--yellow:#b59f3b;--gray:#3a3a3c;--text:#fff
+ --bg:#121213;
+ --tile-bg:#3a3a3c;
+ --tile-border:#565758;
+ --green:#538d4e;
+ --yellow:#b59f3b;
+ --gray:#3a3a3c;
+ --text:#fff;
 }
+
 *{box-sizing:border-box;font-family:Arial,sans-serif}
+
 body{
-  margin:0;background:var(--bg);color:var(--text);
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;height:100vh;overflow:hidden
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  min-height:100svh;
+  padding-top:2vh;
+  overflow-y:auto;
 }
+
 h1{margin-bottom:12px;letter-spacing:2px}
-.board{display:flex;flex-direction:column;gap:8px;align-items:center}
-.row{display:grid;gap:8px;justify-content:center}
-.tile{
-  width:62px;height:62px;border:2px solid var(--tile-border);
-  display:flex;align-items:center;justify-content:center;
-  font-size:2rem;font-weight:bold;text-transform:uppercase;
-  background:var(--tile-bg);transform-style:preserve-3d
+
+/* ===== BOARD ===== */
+.board-wrapper{
+  transition:transform .6s ease;
+  transform-origin:top center;
 }
+
+.board-wrapper.zoom-out{
+  transform:scale(.7);
+}
+
+/* extra mobile safety */
+@media(max-width:480px){
+  .board-wrapper.zoom-out{transform:scale(.6)}
+}
+
+.board{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  align-items:center;
+}
+
+.row{
+  display:grid;
+  gap:8px;
+  justify-content:center;
+}
+
+.tile{
+  width:62px;
+  height:62px;
+  border:2px solid var(--tile-border);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:2rem;
+  font-weight:bold;
+  text-transform:uppercase;
+  background:var(--tile-bg);
+  transform-style:preserve-3d;
+}
+
+/* smaller tiles ONLY for proposal */
+.proposal .tile{
+  width:52px;
+  height:52px;
+  font-size:1.8rem;
+}
+
 .flip{animation:flip .6s ease forwards}
+
 @keyframes flip{
   0%{transform:rotateX(0)}
   50%{transform:rotateX(90deg)}
   100%{transform:rotateX(0)}
 }
+
 .green{background:var(--green);border-color:var(--green)}
 .yellow{background:var(--yellow);border-color:var(--yellow)}
 .gray{background:var(--gray);border-color:var(--gray)}
 
+/* ===== KEYBOARD ===== */
 .keyboard{
   margin-top:16px;
   width:95%;
@@ -50,6 +111,7 @@ h1{margin-bottom:12px;letter-spacing:2px}
 }
 
 .key{
+  flex:1;
   padding:10px 0;
   border-radius:4px;
   background:#818384;
@@ -59,7 +121,6 @@ h1{margin-bottom:12px;letter-spacing:2px}
   font-size:.9rem;
   cursor:pointer;
   user-select:none;
-  flex:1;
 }
 
 .key.wide{flex:1.5}
@@ -67,60 +128,69 @@ h1{margin-bottom:12px;letter-spacing:2px}
 .key.yellow{background:var(--yellow)}
 
 button{
-  margin-top:16px;padding:10px 18px;
-  font-size:1rem;font-weight:bold;
-  border:none;border-radius:6px;
-  cursor:pointer;background:#538d4e;color:#fff
+  margin-top:16px;
+  padding:10px 18px;
+  font-size:1rem;
+  font-weight:bold;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  background:#538d4e;
+  color:#fff;
 }
+
 .hidden{display:none}
 </style>
 </head>
+
 <body>
 
 <h1>WORDLE</h1>
-<div class="board" id="board"></div>
+
+<div class="board-wrapper" id="boardWrapper">
+  <div class="board" id="board"></div>
+</div>
+
 <div class="keyboard" id="keyboard"></div>
 <button id="answerBtn" class="hidden">ANSWER</button>
 
 <script>
-const board = document.getElementById('board')
-const keyboard = document.getElementById('keyboard')
-const answerBtn = document.getElementById('answerBtn')
+const board=document.getElementById('board')
+const keyboard=document.getElementById('keyboard')
+const answerBtn=document.getElementById('answerBtn')
+const boardWrapper=document.getElementById('boardWrapper')
 
-// ================= KEYBOARD =================
-const keys = {}
-
-const keyboardLayout = [
-  ['Q','W','E','R','T','Y','U','I','O','P'],
-  ['A','S','D','F','G','H','J','K','L'],
-  ['ENTER','Z','X','C','V','B','N','M','BACKSPACE']
+/* ===== KEYBOARD ===== */
+const keys={}
+const layout=[
+ ['Q','W','E','R','T','Y','U','I','O','P'],
+ ['A','S','D','F','G','H','J','K','L'],
+ ['ENTER','Z','X','C','V','B','N','M','BACKSPACE']
 ]
 
-keyboardLayout.forEach(row=>{
+layout.forEach(row=>{
   const r=document.createElement('div')
   r.className='krow'
-  row.forEach(key=>{
-    const k=document.createElement('div')
-    k.className='key'
-    if(key==='ENTER' || key==='BACKSPACE') k.classList.add('wide')
-    k.textContent = key==='BACKSPACE'?'⌫':key
-    k.onclick = ()=>handleKey(key)
-    r.appendChild(k)
-    keys[key] = k
+  row.forEach(k=>{
+    const key=document.createElement('div')
+    key.className='key'
+    if(k==='ENTER'||k==='BACKSPACE') key.classList.add('wide')
+    key.textContent=k==='BACKSPACE'?'⌫':k
+    key.onclick=()=>handleKey(k)
+    r.appendChild(key)
+    keys[k]=key
   })
   keyboard.appendChild(r)
 })
 
-// ================= GAME STATE =================
-const WORD_LENGTH = 5
-const MAX_ROWS = 6
-let currentRow = 0
-let currentCol = 0
-let gameOver = false
-const valentineLetters = new Set('VALENTINE'.split(''))
-const guessRows = []
+/* ===== GAME STATE ===== */
+const WORD_LENGTH=5
+const MAX_ROWS=6
+let currentRow=0,currentCol=0,gameOver=false
+const guessRows=[]
+const valentineLetters=new Set('VALENTINE'.split(''))
 
-// ================= GRID =================
+/* ===== GRID ===== */
 for(let r=0;r<MAX_ROWS;r++){
   const row=document.createElement('div')
   row.className='row'
@@ -136,10 +206,9 @@ for(let r=0;r<MAX_ROWS;r++){
   guessRows.push(tiles)
 }
 
-// ================= INPUT =================
+/* ===== INPUT ===== */
 function handleKey(key){
   if(gameOver) return
-
   if(key==='BACKSPACE'){
     if(currentCol>0){
       currentCol--
@@ -147,13 +216,11 @@ function handleKey(key){
     }
     return
   }
-
   if(key==='ENTER'){
     if(currentCol===WORD_LENGTH) submitGuess()
     return
   }
-
-  if(/^[A-Z]$/.test(key) && currentCol<WORD_LENGTH){
+  if(/^[A-Z]$/.test(key)&&currentCol<WORD_LENGTH){
     guessRows[currentRow][currentCol].textContent=key
     currentCol++
   }
@@ -166,7 +233,7 @@ document.addEventListener('keydown',e=>{
   else if(/^[A-Z]$/.test(k)) handleKey(k)
 })
 
-// ================= GUESS =================
+/* ===== GUESS ===== */
 function submitGuess(){
   guessRows[currentRow].forEach((tile,i)=>{
     const letter=tile.textContent
@@ -175,7 +242,7 @@ function submitGuess(){
       if(valentineLetters.has(letter)){
         tile.classList.add('yellow')
         keys[letter]?.classList.add('yellow')
-      } else {
+      }else{
         tile.classList.add('gray')
         keys[letter]?.classList.add('gray')
       }
@@ -191,16 +258,19 @@ function submitGuess(){
   }
 }
 
-// ================= PROPOSAL =================
+/* ===== PROPOSAL ===== */
 function revealProposal(){
+  boardWrapper.classList.add('zoom-out')
+  board.classList.add('proposal')
   board.innerHTML=''
+
   const proposal=['WILL','YOU','BE','MY','VALENTINE']
   let delay=0
 
   proposal.forEach(word=>{
     const row=document.createElement('div')
     row.className='row'
-    row.style.gridTemplateColumns=`repeat(${word.length},62px)`
+    row.style.gridTemplateColumns=`repeat(${word.length},52px)`
     board.appendChild(row)
 
     word.split('').forEach(l=>{
@@ -214,14 +284,14 @@ function revealProposal(){
         t.classList.add('flip')
       },delay)
 
-      delay+=180
+      delay+=160
     })
   })
 
   setTimeout(()=>answerBtn.classList.remove('hidden'),delay+300)
 }
 
-// ================= ANSWER =================
+/* ===== ANSWER ===== */
 answerBtn.onclick=()=>{
   window.location.href='yes.html'
 }
