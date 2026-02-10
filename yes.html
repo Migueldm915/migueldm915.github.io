@@ -2,146 +2,260 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Wordle YES 💚</title>
+<title>Wordle 💚</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
 <style>
-body{margin:0;background:#121213;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;overflow:hidden;font-family:Arial,sans-serif}
-h1{margin-bottom:12px;letter-spacing:2px}
-.board{display:flex;flex-direction:column;gap:8px;align-items:center}
-.row{display:grid;gap:8px;justify-content:center}
-.tile{width:62px;height:62px;border:2px solid #565758;display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:bold;text-transform:uppercase;background:#3a3a3c;transform-style:preserve-3d}
-.flip{animation:flip .6s ease forwards}
-@keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
-.green{background:#538d4e;border-color:#538d4e}
-.yellow{background:#b59f3b;border-color:#b59f3b}
-.gray{background:#3a3a3c;border-color:#3a3a3c}
-@keyframes shake {
-  0% { transform: translateX(0); }
-  20% { transform: translateX(-8px); }
-  40% { transform: translateX(8px); }
-  60% { transform: translateX(-6px); }
-  80% { transform: translateX(6px); }
-  100% { transform: translateX(0); }
+:root{
+  --bg:#121213;
+  --tile:#3a3a3c;
+  --border:#565758;
+  --green:#538d4e;
+  --yellow:#b59f3b;
+  --key:#818384;
 }
-.shake { animation: shake 0.5s; }
-.keyboard{margin-top:16px;display:grid;grid-template-columns:repeat(10,1fr);gap:6px;width:95%;max-width:520px}
-.key{padding:10px 0;border-radius:4px;background:#818384;color:#fff;font-weight:bold;text-align:center;font-size:.9rem}
-.key.gray{background:#3a3a3c}
-.key.yellow{background:#b59f3b}
-button{margin-top:16px;padding:10px 18px;font-size:1rem;font-weight:bold;border:none;border-radius:6px;cursor:pointer;background:#538d4e;color:#fff}
-canvas{position:fixed;top:0;left:0;pointer-events:none}
+
+*{box-sizing:border-box;font-family:Arial,sans-serif}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:#fff;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  min-height:100vh;
+  padding-top:6vh;
+  overflow:hidden;
+}
+
+h1{margin-bottom:16px;letter-spacing:2px}
+
+.board{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  align-items:center;
+}
+
+.row{
+  display:grid;
+  grid-template-columns:repeat(3,62px);
+  gap:8px;
+}
+
+.tile{
+  width:62px;
+  height:62px;
+  background:var(--tile);
+  border:2px solid var(--border);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:2rem;
+  font-weight:bold;
+  text-transform:uppercase;
+  transform-style:preserve-3d;
+}
+
+.flip{animation:flip .6s ease forwards}
+@keyframes flip{
+  0%{transform:rotateX(0)}
+  50%{transform:rotateX(90deg)}
+  100%{transform:rotateX(0)}
+}
+
+.green{background:var(--green);border-color:var(--green)}
+.yellow{background:var(--yellow);border-color:var(--yellow)}
+
+@keyframes shake{
+  0%{transform:translateX(0)}
+  20%{transform:translateX(-8px)}
+  40%{transform:translateX(8px)}
+  60%{transform:translateX(-6px)}
+  80%{transform:translateX(6px)}
+  100%{transform:translateX(0)}
+}
+.shake{animation:shake .45s}
+
+.keyboard{
+  margin-top:24px;
+  width:100%;
+  max-width:500px;
+}
+
+.krow{
+  display:flex;
+  justify-content:center;
+  gap:6px;
+  margin-bottom:8px;
+}
+
+.key{
+  flex:1;
+  padding:14px 0;
+  background:var(--key);
+  border-radius:4px;
+  text-align:center;
+  font-weight:bold;
+  cursor:pointer;
+  user-select:none;
+}
+
+.key.wide{flex:1.5}
+
+.key.yellow{background:var(--yellow)}
+.key.gray{background:var(--tile)}
+
+button{
+  margin-top:18px;
+  padding:12px 20px;
+  background:var(--green);
+  color:#fff;
+  border:none;
+  border-radius:6px;
+  font-size:1rem;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+canvas{
+  position:fixed;
+  top:0;
+  left:0;
+  pointer-events:none;
+}
 </style>
 </head>
+
 <body>
 <h1>WORDLE</h1>
+
 <div class="board" id="board"></div>
+
 <div class="keyboard" id="keyboard"></div>
-<button id="submitYes">SUBMIT</button>
+
+<button id="submit">SUBMIT</button>
 <canvas id="confetti"></canvas>
 
 <script>
-const board = document.getElementById('board')
-const keyboard = document.getElementById('keyboard')
-const submitYesBtn = document.getElementById('submitYes')
-
-// ================= KEYBOARD =================
-const letters='QWERTYUIOPASDFGHJKLZXCVBNM'.split('')
-const keys={}
-letters.forEach(l=>{
-  const k = document.createElement('div')
-  k.className='key'
-  k.textContent=l
-  keyboard.appendChild(k)
-  keys[l]=k
-})
-
-// ================= BUILD 3-TILE YES ROW =================
-const yesTiles=[]
-const row = document.createElement('div')
+/* ===== BOARD ===== */
+const board=document.getElementById('board')
+const row=document.createElement('div')
 row.className='row'
-row.style.gridTemplateColumns='repeat(3,62px)'
-for(let i=0;i<3;i++){
-  const t = document.createElement('div')
-  t.className='tile'
-  row.appendChild(t)
-  yesTiles.push(t)
-}
 board.appendChild(row)
 
-// Keyboard hint for YES
-Object.values(keys).forEach(k=>k.className='key gray')
-;['Y','E','S'].forEach(l=>keys[l].classList.replace('gray','yellow'))
+const tiles=[]
+for(let i=0;i<3;i++){
+  const t=document.createElement('div')
+  t.className='tile'
+  row.appendChild(t)
+  tiles.push(t)
+}
 
-// ================= KEYBOARD INPUT FOR YES =================
-let currentCol=0
-document.addEventListener('keydown', e=>{
-  if(e.key==='Backspace'){
-    if(currentCol>0){
-      currentCol--
-      yesTiles[currentCol].textContent=''
+let col=0
+
+/* ===== KEYBOARD ===== */
+const keyboard=document.getElementById('keyboard')
+const layout=[
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['ENTER','Z','X','C','V','B','N','M','⌫']
+]
+
+layout.forEach(r=>{
+  const kr=document.createElement('div')
+  kr.className='krow'
+  r.forEach(k=>{
+    const key=document.createElement('div')
+    key.className='key'
+    if(k==='ENTER'||k==='⌫') key.classList.add('wide')
+    key.textContent=k
+    key.onclick=()=>handleKey(k)
+    kr.appendChild(key)
+  })
+  keyboard.appendChild(kr)
+})
+
+// highlight YES
+document.querySelectorAll('.key').forEach(k=>{
+  if(['Y','E','S'].includes(k.textContent)) k.classList.add('yellow')
+  else if(k.textContent.length===1) k.classList.add('gray')
+})
+
+/* ===== INPUT ===== */
+function handleKey(k){
+  if(k==='⌫'){
+    if(col>0){
+      col--
+      tiles[col].textContent=''
     }
     return
   }
-  if(currentCol >= 3) return
-  if(/^[a-zA-Z]$/.test(e.key)){
-    yesTiles[currentCol].textContent = e.key.toUpperCase()
-    currentCol++
-  }
-})
-
-// ================= CONFETTI =================
-const canvas=document.getElementById('confetti'), ctx=canvas.getContext('2d')
-let conf=[]
-function resize(){canvas.width=innerWidth; canvas.height=innerHeight}
-addEventListener('resize',resize);resize()
-function startConfetti(){
- for(let i=0;i<180;i++){
-   conf.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height-canvas.height,r:Math.random()*6+4,d:Math.random()*5+2,c:`hsl(${Math.random()*360},100%,50%)`})
- }
- animate()
-}
-function animate(){
- ctx.clearRect(0,0,canvas.width,canvas.height)
- conf.forEach(p=>{
-   ctx.beginPath()
-   ctx.fillStyle=p.c
-   ctx.arc(p.x,p.y,p.r,0,Math.PI*2)
-   ctx.fill()
-   p.y+=p.d
-   if(p.y>canvas.height)p.y=-10
- })
- requestAnimationFrame(animate)
+  if(k==='ENTER') return
+  if(col>=3) return
+  tiles[col].textContent=k
+  col++
 }
 
-// ================= SUBMIT =================
-submitYesBtn.onclick = ()=>{
-  const answer = yesTiles.map(t=>t.textContent).join('').toUpperCase()
-
-  if(answer !== 'YES'){
-    // shake tiles
-    yesTiles.forEach(t => t.classList.add('shake'))
-    // clear letters after shake
-    setTimeout(() => {
-      yesTiles.forEach(t => {
+/* ===== SUBMIT ===== */
+document.getElementById('submit').onclick=()=>{
+  const guess=tiles.map(t=>t.textContent).join('')
+  if(guess!=='YES'){
+    tiles.forEach(t=>t.classList.add('shake'))
+    setTimeout(()=>{
+      tiles.forEach(t=>{
+        t.textContent=''
         t.classList.remove('shake')
-        t.textContent = ''
       })
-      currentCol = 0
-    }, 500)
+      col=0
+    },450)
     return
   }
 
-  // correct answer, reveal YES with flip animation
   ['Y','E','S'].forEach((l,i)=>{
-    const t = yesTiles[i]
+  const t = tiles[i]
+  setTimeout(()=>{
     t.textContent = l
     t.classList.add('flip')
-    setTimeout(()=> t.classList.add('green'), i*200)
-  })
+    setTimeout(()=>t.classList.add('green'),300)
+  }, i * 300)
+})
 
-  submitYesBtn.disabled = true
+
   startConfetti()
 }
+
+/* ===== CONFETTI ===== */
+const canvas=document.getElementById('confetti'),ctx=canvas.getContext('2d')
+let conf=[]
+function resize(){canvas.width=innerWidth;canvas.height=innerHeight}
+addEventListener('resize',resize);resize()
+function startConfetti(){
+  for(let i=0;i<180;i++){
+    conf.push({x:Math.random()*canvas.width,y:-20,r:Math.random()*6+4,d:Math.random()*5+2,c:`hsl(${Math.random()*360},100%,50%)`})
+  }
+  animate()
+}
+function animate(){
+  ctx.clearRect(0,0,canvas.width,canvas.height)
+  conf.forEach(p=>{
+    ctx.beginPath()
+    ctx.fillStyle=p.c
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2)
+    ctx.fill()
+    p.y += p.d
+
+    // recycle confetti
+    if(p.y > canvas.height){
+      p.y = -10
+      p.x = Math.random() * canvas.width
+    }
+  })
+  requestAnimationFrame(animate)
+}
+
 </script>
 </body>
 </html>

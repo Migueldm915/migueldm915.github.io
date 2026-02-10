@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<title>Wordle Proposal 💚</title>
+<title>Wordle</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <style>
 :root{
@@ -10,31 +10,77 @@
  --green:#538d4e;--yellow:#b59f3b;--gray:#3a3a3c;--text:#fff
 }
 *{box-sizing:border-box;font-family:Arial,sans-serif}
-body{margin:0;background:var(--bg);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;overflow:hidden}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;height:100vh;overflow:hidden
+}
 h1{margin-bottom:12px;letter-spacing:2px}
 .board{display:flex;flex-direction:column;gap:8px;align-items:center}
 .row{display:grid;gap:8px;justify-content:center}
-.tile{width:62px;height:62px;border:2px solid var(--tile-border);display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:bold;text-transform:uppercase;background:var(--tile-bg);transform-style:preserve-3d}
+.tile{
+  width:62px;height:62px;border:2px solid var(--tile-border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:2rem;font-weight:bold;text-transform:uppercase;
+  background:var(--tile-bg);transform-style:preserve-3d
+}
 .flip{animation:flip .6s ease forwards}
-@keyframes flip{0%{transform:rotateX(0)}50%{transform:rotateX(90deg)}100%{transform:rotateX(0)}}
+@keyframes flip{
+  0%{transform:rotateX(0)}
+  50%{transform:rotateX(90deg)}
+  100%{transform:rotateX(0)}
+}
 .green{background:var(--green);border-color:var(--green)}
 .yellow{background:var(--yellow);border-color:var(--yellow)}
 .gray{background:var(--gray);border-color:var(--gray)}
-.keyboard{margin-top:16px;display:grid;grid-template-columns:repeat(10,1fr);gap:6px;width:95%;max-width:520px}
-.key{padding:10px 0;border-radius:4px;background:#818384;color:#fff;font-weight:bold;text-align:center;font-size:.9rem}
+
+.keyboard{
+  margin-top:16px;
+  width:95%;
+  max-width:520px;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.krow{
+  display:flex;
+  justify-content:center;
+  gap:6px;
+}
+
+.key{
+  padding:10px 0;
+  border-radius:4px;
+  background:#818384;
+  color:#fff;
+  font-weight:bold;
+  text-align:center;
+  font-size:.9rem;
+  cursor:pointer;
+  user-select:none;
+  flex:1;
+}
+
+.key.wide{flex:1.5}
 .key.gray{background:var(--gray)}
 .key.yellow{background:var(--yellow)}
-button{margin-top:16px;padding:10px 18px;font-size:1rem;font-weight:bold;border:none;border-radius:6px;cursor:pointer;background:#538d4e;color:#fff}
+
+button{
+  margin-top:16px;padding:10px 18px;
+  font-size:1rem;font-weight:bold;
+  border:none;border-radius:6px;
+  cursor:pointer;background:#538d4e;color:#fff
+}
 .hidden{display:none}
-canvas{position:fixed;top:0;left:0;pointer-events:none}
 </style>
 </head>
 <body>
+
 <h1>WORDLE</h1>
 <div class="board" id="board"></div>
 <div class="keyboard" id="keyboard"></div>
 <button id="answerBtn" class="hidden">ANSWER</button>
-<canvas id="confetti"></canvas>
 
 <script>
 const board = document.getElementById('board')
@@ -42,138 +88,142 @@ const keyboard = document.getElementById('keyboard')
 const answerBtn = document.getElementById('answerBtn')
 
 // ================= KEYBOARD =================
-const letters='QWERTYUIOPASDFGHJKLZXCVBNM'.split('')
 const keys = {}
-letters.forEach(l=>{
-  const k = document.createElement('div')
-  k.className='key'
-  k.textContent=l
-  keyboard.appendChild(k)
-  keys[l]=k
+
+const keyboardLayout = [
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['ENTER','Z','X','C','V','B','N','M','BACKSPACE']
+]
+
+keyboardLayout.forEach(row=>{
+  const r=document.createElement('div')
+  r.className='krow'
+  row.forEach(key=>{
+    const k=document.createElement('div')
+    k.className='key'
+    if(key==='ENTER' || key==='BACKSPACE') k.classList.add('wide')
+    k.textContent = key==='BACKSPACE'?'⌫':key
+    k.onclick = ()=>handleKey(key)
+    r.appendChild(k)
+    keys[key] = k
+  })
+  keyboard.appendChild(r)
 })
 
 // ================= GAME STATE =================
-const WORD_LENGTH=5
-const MAX_ROWS=6
-let currentRow=0,currentCol=0
-let gameOver=false
+const WORD_LENGTH = 5
+const MAX_ROWS = 6
+let currentRow = 0
+let currentCol = 0
+let gameOver = false
 const valentineLetters = new Set('VALENTINE'.split(''))
-const guessRows=[]
+const guessRows = []
 
-// ================= BUILD INITIAL GRID =================
+// ================= GRID =================
 for(let r=0;r<MAX_ROWS;r++){
- const row = document.createElement('div')
- row.className='row'
- row.style.gridTemplateColumns='repeat(5,62px)'
- const tiles = []
- for(let c=0;c<WORD_LENGTH;c++){
-   const t=document.createElement('div')
-   t.className='tile'
-   row.appendChild(t)
-   tiles.push(t)
- }
- board.appendChild(row)
- guessRows.push(tiles)
+  const row=document.createElement('div')
+  row.className='row'
+  row.style.gridTemplateColumns='repeat(5,62px)'
+  const tiles=[]
+  for(let c=0;c<WORD_LENGTH;c++){
+    const t=document.createElement('div')
+    t.className='tile'
+    row.appendChild(t)
+    tiles.push(t)
+  }
+  board.appendChild(row)
+  guessRows.push(tiles)
 }
 
 // ================= INPUT =================
-document.addEventListener('keydown', e=>{
- if(gameOver) return
- if(e.key==='Backspace' && currentCol>0){currentCol--;guessRows[currentRow][currentCol].textContent='';return}
- if(e.key==='Enter' && currentCol===WORD_LENGTH){submitGuess();return}
- if(/^[a-zA-Z]$/.test(e.key) && currentCol<WORD_LENGTH){
-   guessRows[currentRow][currentCol].textContent=e.key.toUpperCase()
-   currentCol++
- }
+function handleKey(key){
+  if(gameOver) return
+
+  if(key==='BACKSPACE'){
+    if(currentCol>0){
+      currentCol--
+      guessRows[currentRow][currentCol].textContent=''
+    }
+    return
+  }
+
+  if(key==='ENTER'){
+    if(currentCol===WORD_LENGTH) submitGuess()
+    return
+  }
+
+  if(/^[A-Z]$/.test(key) && currentCol<WORD_LENGTH){
+    guessRows[currentRow][currentCol].textContent=key
+    currentCol++
+  }
+}
+
+document.addEventListener('keydown',e=>{
+  let k=e.key.toUpperCase()
+  if(k==='BACKSPACE') handleKey('BACKSPACE')
+  else if(k==='ENTER') handleKey('ENTER')
+  else if(/^[A-Z]$/.test(k)) handleKey(k)
 })
 
-// ================= GUESS LOGIC =================
+// ================= GUESS =================
 function submitGuess(){
- guessRows[currentRow].forEach((tile,i)=>{
-   const letter=tile.textContent
-   setTimeout(()=>{
-     tile.classList.add('flip')
-     if(valentineLetters.has(letter)){
-       tile.classList.add('yellow')
-       keys[letter]?.classList.add('yellow')
-     } else {
-       tile.classList.add('gray')
-       keys[letter]?.classList.add('gray')
-     }
-   }, i*120)
- })
- currentRow++
- currentCol = 0
- if(currentRow===MAX_ROWS){
-   gameOver=true
-   setTimeout(revealProposal, 1200)
- }
+  guessRows[currentRow].forEach((tile,i)=>{
+    const letter=tile.textContent
+    setTimeout(()=>{
+      tile.classList.add('flip')
+      if(valentineLetters.has(letter)){
+        tile.classList.add('yellow')
+        keys[letter]?.classList.add('yellow')
+      } else {
+        tile.classList.add('gray')
+        keys[letter]?.classList.add('gray')
+      }
+    },i*180)
+  })
+
+  currentRow++
+  currentCol=0
+
+  if(currentRow===MAX_ROWS){
+    gameOver=true
+    setTimeout(revealProposal,1500)
+  }
 }
 
-// ================= PROPOSAL REVEAL =================
+// ================= PROPOSAL =================
 function revealProposal(){
-    board.innerHTML = ''
-    const proposal = ['WILL','YOU','BE','MY','VALENTINE']
-    let delay = 0
+  board.innerHTML=''
+  const proposal=['WILL','YOU','BE','MY','VALENTINE']
+  let delay=0
 
-    proposal.forEach((word, r) => {
-        const row = document.createElement('div')
-        row.className = 'row'
-        row.style.gridTemplateColumns = `repeat(${word.length},62px)`
-        board.appendChild(row)
+  proposal.forEach(word=>{
+    const row=document.createElement('div')
+    row.className='row'
+    row.style.gridTemplateColumns=`repeat(${word.length},62px)`
+    board.appendChild(row)
 
-        // reveal letters one by one
-        word.split('').forEach((l, i) => {
-            const t = document.createElement('div')
-            t.className = 'tile green'
-            t.textContent = '' // start empty
-            row.appendChild(t)
+    word.split('').forEach(l=>{
+      const t=document.createElement('div')
+      t.className='tile green'
+      t.textContent=''
+      row.appendChild(t)
 
-            // stagger letter display
-            setTimeout(() => {
-                t.textContent = l
-                t.classList.add('flip')
-            }, delay)
+      setTimeout(()=>{
+        t.textContent=l
+        t.classList.add('flip')
+      },delay)
 
-            delay += 120
-        })
+      delay+=180
     })
+  })
 
-    // show ANSWER button after all letters are animated
-    setTimeout(() => {
-        answerBtn.classList.remove('hidden')
-    }, delay + 300)
+  setTimeout(()=>answerBtn.classList.remove('hidden'),delay+300)
 }
 
-
-// ================= ANSWER BUTTON =================
-answerBtn.onclick = ()=>{
- // redirect to YES page
- window.location.href = 'yes.html'
-}
-
-// ================= CONFETTI (optional for proposal) =================
-const canvas=document.getElementById('confetti'), ctx=canvas.getContext('2d')
-let conf=[]
-function resize(){canvas.width=innerWidth; canvas.height=innerHeight}
-addEventListener('resize', resize); resize()
-function startConfetti(){
- for(let i=0;i<180;i++){
-   conf.push({x:Math.random()*canvas.width,y:Math.random()*canvas.height-canvas.height,r:Math.random()*6+4,d:Math.random()*5+2,c:`hsl(${Math.random()*360},100%,50%)`})
- }
- animate()
-}
-function animate(){
- ctx.clearRect(0,0,canvas.width,canvas.height)
- conf.forEach(p=>{
-   ctx.beginPath()
-   ctx.fillStyle=p.c
-   ctx.arc(p.x,p.y,p.r,0,Math.PI*2)
-   ctx.fill()
-   p.y += p.d
-   if(p.y>canvas.height)p.y=-10
- })
- requestAnimationFrame(animate)
+// ================= ANSWER =================
+answerBtn.onclick=()=>{
+  window.location.href='yes.html'
 }
 </script>
 </body>
